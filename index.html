@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!--
+    JSON Merger: A JSON merger that combines two structurally different JSON
+    files by supplementing missing parts while preserving main values.
+
+    Copyright (C) 2025 https://github.com/leejch
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    -->
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>JSON合并器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-800 text-gray-100">
+<div class="max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold text-center pt-8">JSON合并器</h1>
+
+    <div>
+        <label class="block">主JSON:</label>
+        <textarea id="mainJson"
+                  class="w-full p-2 bg-gray-900 text-gray-100 border-gray-700 rounded border
+                  h-[180px] min-h-[100px] max-h-[300px]"
+                  placeholder='在此粘贴主JSON内容, 当键和层级完全一致但值不同, 优先保留主JSON的值'></textarea>
+    </div>
+
+    <div>
+        <label class="block">补充JSON:</label>
+        <textarea id="suppJson"
+                  class="w-full p-2 bg-gray-900 text-gray-100 rounded border border-gray-700
+                  h-[180px] min-h-[100px] max-h-[300px]"
+                  placeholder='在此粘贴补充JSON内容'></textarea>
+    </div>
+
+    <div class="text-center mt-4">
+        <button id="mergeBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded">
+            合并
+        </button>
+    </div>
+
+    <div>
+        <label class="block">合并结果:</label>
+        <textarea id="resultJson" readonly
+                  class="w-full p-2 bg-gray-900 text-gray-100 rounded border border-gray-700
+                  h-[200px] min-h-[100px] max-h-[300px]"></textarea>
+    </div>
+
+    <div class="mt-2 text-sm text-gray-700 text-center">
+        <div>
+            Copyright (C) 2025
+            <a href="https://github.com/leejch">https://github.com/leejch</a>
+        </div>
+        <div>
+            LICENSE:
+            <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 深度比较两个值是否完全相等
+    function deepEqual(a, b) {
+        if (a === b) return true;
+        if (typeof a !== typeof b) return false;
+        if (a && b && typeof a === 'object') {
+            if (Array.isArray(a) && Array.isArray(b)) {
+                if (a.length !== b.length) return false;
+                return a.every((v, i) => deepEqual(v, b[i]));
+            }
+            const keysA = Object.keys(a), keysB = Object.keys(b);
+            if (keysA.length !== keysB.length) return false;
+            return keysA.every(k => deepEqual(a[k], b[k]));
+        }
+        return false;
+    }
+
+    // 在数组arr中查找是否存在与item深度相等的元素
+    function arrayContains(arr, item) {
+        return arr.some(el => deepEqual(el, item));
+    }
+
+    // 按规则合并supplement到main中, 直接修改main
+    function mergeJson(main, supplement) {
+        // 如果supplement不是对象或数组, 则无法合并, 直接返回
+        if (typeof supplement !== 'object' || supplement === null) {
+            return;
+        }
+        // 处理数组: 将supplement中的新元素追加到main数组
+        if (Array.isArray(supplement) && Array.isArray(main)) {
+            supplement.forEach(item => {
+                if (!arrayContains(main, item)) {
+                    main.push(item);
+                }
+            });
+            return;
+        }
+        // 处理对象: 逐键遍历
+        Object.keys(supplement).forEach(key => {
+            const supVal = supplement[key];
+            if (!(key in main)) {
+                // 主JSON中不存在该键, 直接补充
+                main[key] = supVal;
+            } else {
+                const mainVal = main[key];
+                // 主补同为对象或数组, 则递归合并
+                if (typeof supVal === 'object' && supVal !== null &&
+                        typeof mainVal === 'object' && mainVal !== null) {
+                    mergeJson(mainVal, supVal);
+                }
+                // 如果是基本类型且值不一致, 保留主JSON的值, 不做任何操作
+            }
+        });
+    }
+
+    document.getElementById('mergeBtn').addEventListener('click', () => {
+        let main, supp;
+        try {
+            main = JSON.parse(document.getElementById('mainJson').value || '{}');
+            supp = JSON.parse(document.getElementById('suppJson').value || '{}');
+        } catch (e) {
+            alert('JSON 解析失败, 请检查格式是否正确。');
+            return;
+        }
+        // 深拷贝一份主JSON, 避免修改原始输入
+        const result = JSON.parse(JSON.stringify(main));
+        mergeJson(result, supp);
+        // 格式化输出
+        document.getElementById('resultJson').value = JSON.stringify(result, null, 4);
+    });
+</script>
+
+</body>
+</html>
